@@ -1,0 +1,40 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.3.255.40792",
+      "templateHash": "1345298175266754955"
+    }
+  },
+  "parameters": {
+    "managedIdentityForDeployment": {
+      "type": "string",
+      "metadata": {
+        "description": "The resource Id of the managed Identity to use for deployment"
+      }
+    }
+  },
+  "functions": [],
+  "resources": [
+    {
+      "type": "Microsoft.Resources/deploymentScripts",
+      "apiVersion": "2020-10-01",
+      "name": "enablesecurity",
+      "kind": "AzureCLI",
+      "location": "[resourceGroup().location]",
+      "identity": {
+        "type": "UserAssigned",
+        "userAssignedIdentities": {
+          "[parameters('managedIdentityForDeployment')]": {}
+        }
+      },
+      "properties": {
+        "azCliVersion": "2.9.1",
+        "retentionInterval": "P1D",
+        "primaryScriptUri": "https://raw.githubusercontent.com/vinagesh/ServerlessTesting/main/test.ps1"
+      }
+    }
+  ]
+}
