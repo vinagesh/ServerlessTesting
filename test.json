@@ -1,0 +1,234 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.3.255.40792",
+      "templateHash": "17797848706479009169"
+    }
+  },
+  "parameters": {
+    "StorageAccountName": {
+      "type": "string"
+    },
+    "RunCsxContent": {
+      "type": "string"
+    },
+    "ProjContent": {
+      "type": "string"
+    },
+    "FunctionRuntime": {
+      "type": "string"
+    },
+    "NetFrameWorkVersion": {
+      "type": "string"
+    },
+    "Use32BitWorker": {
+      "type": "bool"
+    },
+    "ApplicationInsightsName": {
+      "type": "string",
+      "defaultValue": "[format('{0}-ai', resourceGroup().name)]"
+    },
+    "ServerFarmName": {
+      "type": "string",
+      "defaultValue": "[format('{0}-srv', resourceGroup().name)]"
+    },
+    "EventHubNamespaceName": {
+      "type": "string",
+      "defaultValue": "[format('{0}-ehn', resourceGroup().name)]"
+    },
+    "EventHubName": {
+      "type": "string",
+      "defaultValue": "[format('{0}-eh', resourceGroup().name)]"
+    },
+    "WebsiteName": {
+      "type": "string",
+      "defaultValue": "[format('{0}-web', resourceGroup().name)]"
+    },
+    "FunctionName": {
+      "type": "string",
+      "defaultValue": "HelloWorld"
+    },
+    "SubscriptionId": {
+      "type": "string",
+      "defaultValue": "[subscription().id]"
+    },
+    "RgName": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().name]"
+    },
+    "Location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]"
+    },
+    "EventHubAuthRuleResourceId": {
+      "type": "string",
+      "defaultValue": "[format('Microsoft.EventHub/namespaces/{0}/authorizationRules/RootManageSharedAccessKey', parameters('EventHubNamespaceName'))]"
+    }
+  },
+  "functions": [],
+  "resources": [
+    {
+      "type": "Microsoft.Insights/components",
+      "apiVersion": "2020-02-02-preview",
+      "name": "[parameters('ApplicationInsightsName')]",
+      "kind": "web",
+      "location": "[parameters('Location')]",
+      "properties": {
+        "Application_Type": "web"
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2019-06-01",
+      "name": "[parameters('StorageAccountName')]",
+      "location": "[parameters('Location')]",
+      "kind": "Storage",
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "properties": {
+        "supportsHttpsTrafficOnly": true,
+        "minimumTlsVersion": "TLS1_2"
+      }
+    },
+    {
+      "type": "Microsoft.Web/serverfarms",
+      "apiVersion": "2018-11-01",
+      "name": "[parameters('ServerFarmName')]",
+      "location": "[parameters('Location')]",
+      "kind": "",
+      "properties": {
+        "name": "[parameters('ServerFarmName')]"
+      },
+      "sku": {
+        "tier": "Standard",
+        "name": "S1"
+      }
+    },
+    {
+      "type": "Microsoft.EventHub/namespaces",
+      "apiVersion": "2021-11-01",
+      "name": "[parameters('EventHubNamespaceName')]",
+      "location": "[parameters('Location')]",
+      "sku": {
+        "name": "Standard",
+        "tier": "Standard",
+        "capacity": 1
+      },
+      "properties": {
+        "isAutoInflateEnabled": false,
+        "maximumThroughputUnits": 0
+      }
+    },
+    {
+      "type": "Microsoft.EventHub/namespaces/eventhubs",
+      "apiVersion": "2021-11-01",
+      "name": "[format('{0}/{1}', parameters('EventHubNamespaceName'), parameters('EventHubName'))]",
+      "properties": {
+        "messageRetentionInDays": 7,
+        "partitionCount": 1
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.EventHub/namespaces', parameters('EventHubNamespaceName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Web/sites",
+      "apiVersion": "2018-11-01",
+      "name": "[parameters('WebsiteName')]",
+      "location": "[parameters('Location')]",
+      "kind": "functionapp",
+      "tags": {
+        "hidden-link: /app-insights-resource-id": "[format('/subscriptions/{0}/resourceGroups/{1}/providers/Microsoft.Insights/components/{2}', parameters('SubscriptionId'), parameters('RgName'), parameters('ApplicationInsightsName'))]"
+      },
+      "properties": {
+        "name": "[parameters('WebsiteName')]",
+        "siteConfig": {
+          "appSettings": [
+            {
+              "name": "FUNCTIONS_EXTENSION_VERSION",
+              "value": "~4"
+            },
+            {
+              "name": "FUNCTIONS_WORKER_RUNTIME",
+              "value": "[parameters('FunctionRuntime')]"
+            },
+            {
+              "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+              "value": "[reference(resourceId('Microsoft.Insights/components', parameters('ApplicationInsightsName')), '2015-05-01').InstrumentationKey]"
+            },
+            {
+              "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+              "value": "[reference(resourceId('Microsoft.Insights/components', parameters('ApplicationInsightsName')), '2015-05-01').ConnectionString]"
+            },
+            {
+              "name": "AzureWebJobsStorage",
+              "value": "[format('DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1};EndpointSuffix=core.windows.net', parameters('StorageAccountName'), listkeys(resourceId('Microsoft.Storage/storageAccounts', parameters('StorageAccountName')), '2019-06-01').keys[0].value)]"
+            },
+            {
+              "name": "SERVERLESS_SECURITY_ENABLED",
+              "value": "true"
+            },
+            {
+              "name": "SERVERLESS_SECURITY_LOG_CONFIG",
+              "value": "[reference(resourceId('Microsoft.Insights/components', parameters('ApplicationInsightsName')), '2015-05-01').InstrumentationKey]"
+            },
+            {
+              "name": "SERVERLESS_SECURITY_EVENT_HUB_NAME",
+              "value": "[parameters('EventHubName')]"
+            },
+            {
+              "name": "SERVERLESS_SECURITY_EVENT_HUB_CONNECTION_STRING",
+              "value": "[listkeys(parameters('EventHubAuthRuleResourceId'), '2015-08-01').primaryConnectionString]"
+            }
+          ],
+          "use32BitWorkerProcess": "[parameters('Use32BitWorker')]",
+          "alwaysOn": true,
+          "netFrameworkVersion": "[parameters('NetFrameWorkVersion')]",
+          "ftpsState": "FtpsOnly"
+        },
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', parameters('ServerFarmName'))]",
+        "httpsOnly": true
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Insights/components', parameters('ApplicationInsightsName'))]",
+        "[resourceId('Microsoft.EventHub/namespaces/eventhubs', split(format('{0}/{1}', parameters('EventHubNamespaceName'), parameters('EventHubName')), '/')[0], split(format('{0}/{1}', parameters('EventHubNamespaceName'), parameters('EventHubName')), '/')[1])]",
+        "[resourceId('Microsoft.Web/serverfarms', parameters('ServerFarmName'))]",
+        "[resourceId('Microsoft.Storage/storageAccounts', parameters('StorageAccountName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Web/sites/functions",
+      "apiVersion": "2018-11-01",
+      "name": "[format('{0}/{1}', parameters('WebsiteName'), parameters('FunctionName'))]",
+      "properties": {
+        "config": {
+          "bindings": [
+            {
+              "name": "req",
+              "type": "httpTrigger",
+              "direction": "in",
+              "schedule": "[parameters('FunctionName')]"
+            },
+            {
+              "name": "$return",
+              "type": "http",
+              "direction": "out"
+            }
+          ],
+          "disabled": false
+        },
+        "files": {
+          "run.csx": "[base64ToString(parameters('RunCsxContent'))]",
+          "function.proj": "[base64ToString(parameters('ProjContent'))]"
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', parameters('WebsiteName'))]"
+      ]
+    }
+  ]
+}
